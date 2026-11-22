@@ -11,10 +11,10 @@ jobs:
   qualify:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    env:
-      WORMHOLE_TEST_TMPDIR: ${{ runner.temp }}
-      TMPDIR: ${{ runner.temp }}
     steps:
+      - name: Configure disposable temporary storage
+        run: |
+          printf 'WORMHOLE_TEST_TMPDIR=%s\nTMPDIR=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
