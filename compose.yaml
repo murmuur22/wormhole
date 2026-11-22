@@ -1,0 +1,40 @@
+name: wormhole
+x-common: &common
+  image: ${WORMHOLE_IMAGE:-ghcr.io/murmuur22/wormhole:0.1.0}
+  user: "${WORMHOLE_UID:-10001}:${WORMHOLE_GID:-10001}"
+  restart: unless-stopped
+  stop_grace_period: 120s
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp:size=64m,mode=1777]
+  environment: &environment
+    WORMHOLE_SECRET_KEY: ${WORMHOLE_SECRET_KEY:?Set a private random secret}
+    WORMHOLE_ARCHIVE_ID: ${WORMHOLE_ARCHIVE_ID:?Set the archive marker identity}
+    WORMHOLE_STATE_DIR: /state
+    WORMHOLE_ARCHIVE_ROOT: /archive
+    WORMHOLE_HOSTS: ${WORMHOLE_HOSTS:-127.0.0.1,localhost}
+    WORMHOLE_SECURE_COOKIES: ${WORMHOLE_SECURE_COOKIES:-1}
+    WORMHOLE_FRAME_ANCESTOR: ${WORMHOLE_FRAME_ANCESTOR:-}
+  volumes:
+    - type: bind
+      source: ${WORMHOLE_STATE_PATH:?Set a local state directory}
+      target: /state
+      bind: {create_host_path: false}
+    - type: bind
+      source: ${WORMHOLE_ARCHIVE_PATH:?Set an existing mounted archive directory}
+      target: /archive
+      bind: {create_host_path: false}
+services:
+  portal:
+    <<: *common
+    environment:
+      <<: *environment
+      WORMHOLE_SURFACE: portal
+    ports: ["127.0.0.1:${WORMHOLE_PORTAL_PORT:-8751}:8000"]
+  admin:
+    <<: *common
+    environment:
+      <<: *environment
+      WORMHOLE_SURFACE: admin
+    ports: ["127.0.0.1:${WORMHOLE_ADMIN_PORT:-8752}:8000"]

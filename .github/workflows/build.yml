@@ -1,0 +1,71 @@
+name: Qualify and build Wormhole
+on:
+  push:
+    branches: [main, development/first-release]
+    tags: ['v0.1.0']
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      WORMHOLE_TEST_TMPDIR: ${{ runner.temp }}
+      TMPDIR: ${{ runner.temp }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Locked Python dependencies
+        run: |
+          python -m pip install uv==0.12.10
+          uv sync --locked --python 3.12
+      - name: Backend, agent CLI and safety regressions
+        run: uv run python manage.py test tests --settings=tests.settings --noinput
+      - name: Source quality
+        run: |
+          uv run ruff check core wormhole tests scripts manage.py
+          uv run ruff format --check core wormhole tests scripts manage.py
+          node --check static/portal.js
+          node --check static/admin.js
+      - name: Browser prerequisites
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Real browser workflows
+        run: npm run test:browser
+      - name: Build Linux amd64 image
+        run: docker build --label org.opencontainers.image.source=https://github.com/murmuur22/wormhole --label org.opencontainers.image.version=0.1.0 --label org.opencontainers.image.revision=${{ github.sha }} -t wormhole:0.1.0 .
+      - name: Exercise actual container and mounted files
+        run: uv run python scripts/container_smoke.py wormhole:0.1.0
+      - name: Package image and operator bundle
+        run: |
+          mkdir -p dist
+          docker save wormhole:0.1.0 | gzip > dist/wormhole-0.1.0-linux-amd64.docker.tar.gz
+          docker image inspect wormhole:0.1.0 > dist/image-inspect.json
+          uv run python scripts/package_release.py
+      - name: Publish versioned container on an authorized release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker tag wormhole:0.1.0 ghcr.io/murmuur22/wormhole:0.1.0
+          docker push ghcr.io/murmuur22/wormhole:0.1.0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wormhole-0.1.0-build
+          path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qualification-evidence
+          path: |
+            artifacts/
+            .local/container-verification.json
+          if-no-files-found: warn

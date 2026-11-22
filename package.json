@@ -1,0 +1,1 @@
+{"name":"wormhole-browser-qualification","version":"0.1.0","private":true,"type":"module","scripts":{"test:browser":"node scripts/browser.mjs"},"devDependencies":{"playwright":"1.56.1","three":"0.180.0"}}

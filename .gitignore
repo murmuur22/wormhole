@@ -1,0 +1,15 @@
+.local/
+.venv/
+__pycache__/
+*.py[cod]
+node_modules/
+.env
+.env.*
+!.env.example
+data/
+state/
+uploads/
+artifacts/
+dist/
+.coverage
+.pytest_cache/

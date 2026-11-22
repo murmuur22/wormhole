@@ -1,0 +1,14 @@
+.git
+.local
+.venv
+node_modules
+__pycache__
+*.pyc
+.env
+.env.*
+data
+state
+uploads
+artifacts
+dist
+design-archive
