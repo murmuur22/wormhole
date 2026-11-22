@@ -173,6 +173,10 @@ print(json.dumps({'token':raw,'bucket':b.pk}))
                 "Host CLI uploads multiple chunks into actual container and exact mounted bytes match receipt"
             )
             run(["restart", started[0]])
+            # Docker may allocate a different ephemeral host port on restart.
+            restarted = json.loads(run(["inspect", started[0]]).stdout)[0]
+            port = restarted["NetworkSettings"]["Ports"]["8000/tcp"][0]["HostPort"]
+            urls[0] = "http://127.0.0.1:" + port
             for attempt in range(80):
                 try:
                     if health(urls[0])["status"] == "ok":
@@ -204,6 +208,11 @@ print(json.dumps({'token':raw,'bucket':b.pk}))
                 )
             )
             print(json.dumps({"checks": report, "image": image}, indent=2))
+        except Exception:
+            for name in started:
+                print(run(["inspect", name]).stdout, file=sys.stderr)
+                print(run(["logs", name]).stderr, file=sys.stderr)
+            raise
         finally:
             for name in started:
                 subprocess.run(
